@@ -102,7 +102,7 @@ type Task struct {
 // NewTask returns a new Task struct, and initialize aws ecs API client.
 // If you want to run the task as Fargate, please provide fargate flag to true, and your subnet IDs for awsvpc.
 // If you don't want to run the task as Fargate, please provide empty string for subnetIDs.
-func NewTask(cluster, container, taskDefinitionName, command string, fargate bool, subnetIDs, securityGroupIDs string, platformVersion string, timeout time.Duration, timestampFormat, profile, region string) (*Task, error) {
+func NewTask(cluster, container, taskDefinitionName, command string, fargate bool, subnetIDs, securityGroupIDs, platformVersion string, timeout time.Duration, timestampFormat, profile, region string) (*Task, error) {
 	if cluster == "" {
 		return nil, errors.New("Cluster name is required")
 	}
@@ -178,23 +178,31 @@ func (t *Task) RunTask(ctx context.Context, taskDefinition *ecs.TaskDefinition) 
 	}
 	var params *ecs.RunTaskInput
 	if len(t.Subnets) > 0 {
-		var (
-			vpcConfiguration = &ecs.AwsVpcConfiguration{
-				AssignPublicIp:  aws.String(t.AssignPublicIP),
-				Subnets:         t.Subnets,
-				SecurityGroups:  t.SecurityGroups,
-			}
-		)
+		vpcConfiguration := &ecs.AwsVpcConfiguration{
+			AssignPublicIp: aws.String(t.AssignPublicIP),
+			Subnets:        t.Subnets,
+			SecurityGroups: t.SecurityGroups,
+		}
 		network := &ecs.NetworkConfiguration{
 			AwsvpcConfiguration: vpcConfiguration,
 		}
-		params = &ecs.RunTaskInput{
-			Cluster:              aws.String(t.Cluster),
-			TaskDefinition:       taskDefinition.TaskDefinitionArn,
-			Overrides:            override,
-			NetworkConfiguration: network,
-			LaunchType:           aws.String(t.LaunchType),
-			PlatformVersion:      aws.String(t.PlatformVersion),
+		if len(t.PlatformVersion) > 0 {
+			params = &ecs.RunTaskInput{
+				Cluster:              aws.String(t.Cluster),
+				TaskDefinition:       taskDefinition.TaskDefinitionArn,
+				Overrides:            override,
+				NetworkConfiguration: network,
+				LaunchType:           aws.String(t.LaunchType),
+				PlatformVersion:      aws.String(t.PlatformVersion),
+			}
+		} else {
+			params = &ecs.RunTaskInput{
+				Cluster:              aws.String(t.Cluster),
+				TaskDefinition:       taskDefinition.TaskDefinitionArn,
+				Overrides:            override,
+				NetworkConfiguration: network,
+				LaunchType:           aws.String(t.LaunchType),
+			}
 		}
 	} else {
 		params = &ecs.RunTaskInput{
